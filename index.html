@@ -663,7 +663,9 @@ async function sendChat(){
 
   const system = `You are Noah's personal track & field coach assistant. Here is everything you need to know about Noah:
 
-SHOES:
+WORKOUT LOG:
+- Contains running activities ONLY (walks, bike rides, and other cross training are excluded)
+- Do not assume cross training is happening unless Noah specifically mentions it
 - Has both trainers and super shoes (carbon plate)
 - Super shoes = races, track intervals, tempo, time trials
 - Trainers = easy runs, run/walk days, long runs, recovery, hills
@@ -721,21 +723,21 @@ function renderCoachMessages(){
   scrollChat();
 }
 
-// ─── CSV Import ───────────────────────────────────────────
+// ─── Import (JSON + CSV) ──────────────────────────────────
 function renderImport(){
   const el = document.getElementById('view-import');
   el.innerHTML=`
     <div class="card">
-      <div class="section-label" style="margin-bottom:16px">Import Garmin CSV</div>
+      <div class="section-label" style="margin-bottom:4px">Import Garmin Data</div>
       <p style="font-family:'Barlow',sans-serif;font-size:14px;color:#777;margin-bottom:20px;line-height:1.6">
-        Export your activities from <strong style="color:var(--gold)">Garmin Connect</strong> → Account → Data Export.
-        Find the <code style="color:var(--gold);background:rgba(200,169,110,0.1);padding:2px 6px;border-radius:2px">Activities.csv</code> inside the ZIP and upload it below.
+        Supports both <strong style="color:var(--gold)">JSON</strong> (from Garmin data export) and <strong style="color:var(--gold)">CSV</strong> (Activities.csv).
+        Drag in your file or click to choose. Run/walk workouts are detected automatically from the activity name.
       </p>
       <div id="importBanner"></div>
-      <label class="import-area" id="importArea" for="csvFile">
+      <label class="import-area" id="importArea" for="importFile">
         <div style="font-size:32px">📂</div>
-        <p>Click to choose your Activities.csv<br/><span style="font-size:12px;color:#3a3a3a">or drag & drop it here</span></p>
-        <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="handleCSV(this)"/>
+        <p>Click to choose your Garmin JSON or CSV file<br/><span style="font-size:12px;color:#3a3a3a">or drag & drop it here</span></p>
+        <input type="file" id="importFile" accept=".json,.csv" style="display:none" onchange="handleImportFile(this)"/>
       </label>
       <div id="importPreview"></div>
     </div>
@@ -746,102 +748,195 @@ function renderImport(){
   area.addEventListener('drop',e=>{
     e.preventDefault();area.classList.remove('drag');
     const f=e.dataTransfer.files[0];
-    if(f) parseCSVFile(f);
+    if(f) parseImportFile(f);
   });
 }
 
-function handleCSV(input){
+function handleImportFile(input){
   const f = input.files[0];
-  if(f) parseCSVFile(f);
+  if(f) parseImportFile(f);
 }
 
-function parseCSVFile(file){
-  const reader = new FileReader();
-  reader.onload = e => {
-    const text = e.target.result;
-    const lines = text.trim().split('\n');
-    if(lines.length<2){ showImportBanner('Could not read CSV — make sure it\'s the Garmin Activities.csv','info'); return; }
-    const headers = lines[0].split(',').map(h=>h.replace(/"/g,'').trim().toLowerCase());
+// ─── Detect run/walk from activity name ───────────────────
+function detectRunWalk(name){
+  // Matches patterns like: 5x3/1, 4x4/1, 5x 3/1, 4 x 4/1, 3/1x5 etc
+  const m = (name||'').match(/(\d+)\s*[xX×]\s*(\d+\.?\d*)\/(\d+\.?\d*)|(\d+\.?\d*)\/(\d+\.?\d*)\s*[xX×]\s*(\d+)/);
+  if(!m) return {isRunWalk:false,rwRun:'',rwWalk:'',rwSets:''};
+  if(m[1]){ return {isRunWalk:true, rwSets:m[1], rwRun:m[2], rwWalk:m[3]}; }
+  if(m[4]){ return {isRunWalk:true, rwRun:m[4], rwWalk:m[5], rwSets:m[6]}; }
+  return {isRunWalk:false,rwRun:'',rwWalk:'',rwSets:''};
+}
 
-    const colIdx = (names) => {
-      for(const n of names){ const i=headers.findIndex(h=>h.includes(n)); if(i>-1) return i; }
-      return -1;
-    };
-    const dateIdx = colIdx(['date','activity date']);
-    const typeIdx = colIdx(['activity type','type']);
-    const distIdx = colIdx(['distance']);
-    const timeIdx = colIdx(['time','elapsed time','duration']);
-    const hrIdx   = colIdx(['avg hr','average heart rate','heart rate']);
-    const nameIdx = colIdx(['activity name','name','title']);
+// ─── Map activity type ────────────────────────────────────
+function mapActivityType(rawType, name, rw){
+  if(rw.isRunWalk) return 'Run/Walk';
+  const t=(rawType||'').toLowerCase();
+  const n=(name||'').toLowerCase();
+  if(t.includes('run')||t.includes('running')){
+    if(n.includes('interval')||n.includes('track')||n.includes('workout')||
+       n.includes('200')||n.includes('400')||n.includes('tempo')||n.includes('speed'))
+      return 'Interval / Track Workout';
+    if(n.includes('long')) return 'Long Run';
+    if(n.includes('easy')||n.includes('recovery')) return 'Easy Run';
+    if(n.includes('tempo')) return 'Tempo Run';
+    if(n.includes('hill')) return 'Hill Workout';
+    return 'Easy Run';
+  }
+  if(t.includes('walk')) return 'Recovery Jog';
+  return 'Easy Run';
+}
 
-    if(dateIdx===-1){ showImportBanner('Could not find a Date column. Is this a Garmin Activities.csv?','info'); return; }
+// ─── Parse Garmin JSON ────────────────────────────────────
+function parseGarminJSON(text){
+  let raw;
+  try{ raw=JSON.parse(text); }catch{ showImportBanner('Could not parse JSON — make sure it\'s a valid Garmin export file.','info'); return; }
 
-    let imported=0, skipped=0;
-    const newWorkouts=[];
+  // Handle wrapper: [{summarizedActivitiesExport:[...]}] or just [...]
+  let activities = [];
+  if(Array.isArray(raw)){
+    if(raw[0]?.summarizedActivitiesExport) activities = raw[0].summarizedActivitiesExport;
+    else activities = raw;
+  } else if(raw.summarizedActivitiesExport){
+    activities = raw.summarizedActivitiesExport;
+  } else {
+    showImportBanner('Unrecognized JSON format — expected Garmin summarizedActivitiesExport.','info'); return;
+  }
 
-    for(let i=1;i<lines.length;i++){
-      const cols = lines[i].split(',').map(c=>c.replace(/"/g,'').trim());
-      const rawDate = cols[dateIdx]||'';
-      if(!rawDate) continue;
+  let imported=0, skipped=0, nonRun=0;
+  const newWorkouts=[];
 
-      // Parse date
-      let date='';
-      try{
-        const d=new Date(rawDate);
-        if(!isNaN(d)) date=d.toISOString().split('T')[0];
-        else{ skipped++; continue; }
-      }catch{ skipped++; continue; }
+  // Running activity types to include
+  const isRunningActivity = (type) => {
+    const t=(type||'').toLowerCase();
+    return t.includes('run') || t==='trail_running' || t==='track_running' || t==='treadmill_running';
+  };
 
-      const rawType=(typeIdx>-1?cols[typeIdx]:'').toLowerCase();
-      let type='Easy Run';
-      if(rawType.includes('run')) type='Easy Run';
-      else if(rawType.includes('walk')) type='Recovery Jog';
-      else if(rawType.includes('cycling')||rawType.includes('bike')) type='Strength / Drills';
-      else if(rawType.includes('swim')) type='Strength / Drills';
-      else type = nameIdx>-1&&cols[nameIdx] ? cols[nameIdx].slice(0,30) : 'Easy Run';
+  activities.forEach((a,i)=>{
+    if(!isRunningActivity(a.activityType||a.sportType)){ nonRun++; return; }
 
-      const distRaw = distIdx>-1?cols[distIdx]:'';
-      const distance = distRaw?parseFloat(distRaw).toFixed(2):'';
-      const unit = 'km'; // Garmin default export is km
-      const hrRaw = hrIdx>-1?cols[hrIdx]:'';
-      const heartRate = hrRaw&&!isNaN(hrRaw)?hrRaw:'';
-      const timeRaw = timeIdx>-1?cols[timeIdx]:'';
-      let duration='';
-      if(timeRaw){
-        // HH:MM:SS or seconds
-        if(timeRaw.includes(':')){
-          const parts=timeRaw.split(':').map(Number);
-          if(parts.length===3) duration=Math.round(parts[0]*60+parts[1]+parts[2]/60).toString();
-          else if(parts.length===2) duration=Math.round(parts[0]+parts[1]/60).toString();
-        } else {
-          duration=Math.round(parseFloat(timeRaw)/60).toString();
-        }
-      }
+    // Date from beginTimestamp (milliseconds)
+    let date='';
+    try{
+      const ts = a.beginTimestamp||a.startTimeGmt;
+      // Garmin sometimes stores as scientific notation float
+      const ms = typeof ts==='string'? parseFloat(ts) : ts;
+      date = new Date(ms).toISOString().split('T')[0];
+      if(date==='Invalid Date'||!date){ skipped++; return; }
+    }catch{ skipped++; return; }
 
-      // Don't duplicate
-      if(!workouts.some(w=>w.date===date&&w.distance===distance)) {
-        newWorkouts.push({id:Date.now()+i, date, type, distance, unit, duration, effort:5, notes:'Imported from Garmin', heartRate, splits:'', isRunWalk:false, rwRun:'', rwWalk:'', rwSets:''});
-        imported++;
-      } else skipped++;
+    const name = a.name||'';
+    const rw = detectRunWalk(name);
+    const type = mapActivityType(a.activityType, name, rw);
+
+    // Distance: Garmin JSON is in centimeters → convert to miles
+    const distCm = parseFloat(a.distance||0);
+    const distMiles = distCm>0 ? (distCm/160934).toFixed(2) : '';
+
+    // Duration: milliseconds → minutes
+    const durMs = parseFloat(a.duration||a.movingDuration||0);
+    const durMin = durMs>0 ? Math.round(durMs/60000).toString() : '';
+
+    const heartRate = a.avgHr ? Math.round(a.avgHr).toString() : '';
+
+    // Notes: include location and key stats
+    const loc = a.locationName ? `${a.locationName} · ` : '';
+    const vo2 = a.vO2MaxValue ? ` · VO2Max: ${a.vO2MaxValue}` : '';
+    const cad = a.avgRunCadence ? ` · Cadence: ${Math.round(a.avgRunCadence*2)}spm` : '';
+    const notes = `${loc}Imported from Garmin${vo2}${cad}`;
+
+    // Deduplicate by date + distance
+    if(workouts.some(w=>w.date===date&&w.distance===distMiles)){ skipped++; return; }
+
+    newWorkouts.push({
+      id: Date.now()+i,
+      date, type,
+      distance: distMiles,
+      unit: 'miles',
+      duration: durMin,
+      effort: 5,
+      notes,
+      heartRate,
+      splits: '',
+      isRunWalk: rw.isRunWalk,
+      rwRun: rw.rwRun,
+      rwWalk: rw.rwWalk,
+      rwSets: rw.rwSets,
+      garminName: name,
+    });
+    imported++;
+  });
+
+  finishImport(newWorkouts, imported, skipped, nonRun);
+}
+
+// ─── Parse Garmin CSV ─────────────────────────────────────
+function parseGarminCSV(text){
+  const lines = text.trim().split('\n');
+  if(lines.length<2){ showImportBanner('Could not read CSV.','info'); return; }
+  const headers = lines[0].split(',').map(h=>h.replace(/"/g,'').trim().toLowerCase());
+  const colIdx = (names) => { for(const n of names){ const i=headers.findIndex(h=>h.includes(n)); if(i>-1) return i; } return -1; };
+  const dateIdx=colIdx(['date','activity date']), typeIdx=colIdx(['activity type','type']),
+        distIdx=colIdx(['distance']), timeIdx=colIdx(['time','elapsed time','duration']),
+        hrIdx=colIdx(['avg hr','average heart rate']), nameIdx=colIdx(['activity name','name','title']);
+  if(dateIdx===-1){ showImportBanner('Could not find a Date column.','info'); return; }
+
+  let imported=0, skipped=0;
+  const newWorkouts=[];
+  for(let i=1;i<lines.length;i++){
+    const cols=lines[i].split(',').map(c=>c.replace(/"/g,'').trim());
+    const rawDate=cols[dateIdx]||''; if(!rawDate) continue;
+    let date='';
+    try{ const d=new Date(rawDate); if(!isNaN(d)) date=d.toISOString().split('T')[0]; else{ skipped++; continue; } }catch{ skipped++; continue; }
+    const actName = nameIdx>-1?cols[nameIdx]:'';
+    const rw = detectRunWalk(actName);
+    const rawType=typeIdx>-1?cols[typeIdx]:'';
+    const type = mapActivityType(rawType, actName, rw);
+    const distRaw=distIdx>-1?cols[distIdx]:'';
+    const distance=distRaw?parseFloat(distRaw).toFixed(2):'';
+    const hrRaw=hrIdx>-1?cols[hrIdx]:'';
+    const heartRate=hrRaw&&!isNaN(hrRaw)?hrRaw:'';
+    const timeRaw=timeIdx>-1?cols[timeIdx]:'';
+    let duration='';
+    if(timeRaw){ if(timeRaw.includes(':')){ const p=timeRaw.split(':').map(Number); duration=p.length===3?Math.round(p[0]*60+p[1]+p[2]/60).toString():Math.round(p[0]+p[1]/60).toString(); } else duration=Math.round(parseFloat(timeRaw)/60).toString(); }
+    if(workouts.some(w=>w.date===date&&w.distance===distance)){ skipped++; continue; }
+    newWorkouts.push({id:Date.now()+i,date,type,distance,unit:'km',duration,effort:5,notes:'Imported from Garmin',heartRate,splits:'',isRunWalk:rw.isRunWalk,rwRun:rw.rwRun,rwWalk:rw.rwWalk,rwSets:rw.rwSets,garminName:actName});
+    imported++;
+  }
+  finishImport(newWorkouts, imported, skipped);
+}
+
+// ─── Finish import ────────────────────────────────────────
+function finishImport(newWorkouts, imported, skipped, nonRun=0){
+  newWorkouts.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  workouts=[...newWorkouts,...workouts];
+  workouts.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  save();
+  const rwCount = newWorkouts.filter(w=>w.isRunWalk).length;
+  document.getElementById('importPreview').innerHTML=`
+    <div class="banner success" style="margin-top:16px">
+      ✓ Imported <strong>${imported}</strong> runs (${skipped} duplicate${skipped!==1?'s':''} skipped).
+      ${nonRun?`<br/>🚴 <strong>${nonRun}</strong> non-running activities (walks, rides etc) were ignored — keeping your log runs-only.`:''}
+      ${rwCount?`<br/>🚶 <strong>${rwCount}</strong> run/walk workouts detected automatically from activity names.`:''}
+      <br/><br/><button class="btn-ghost" style="margin-top:2px" onclick="showView('history',document.querySelectorAll('.nav-btn')[2])">View History →</button>
+    </div>`;
+}
+
+function parseImportFile(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const text=e.target.result.trim();
+    if(file.name.endsWith('.json')||text.startsWith('[{')||text.startsWith('{')){
+      parseGarminJSON(text);
+    } else {
+      parseGarminCSV(text);
     }
-
-    newWorkouts.sort((a,b)=>new Date(b.date)-new Date(a.date));
-    workouts = [...newWorkouts.filter(n=>!workouts.some(w=>w.id===n.id)), ...workouts];
-    workouts.sort((a,b)=>new Date(b.date)-new Date(a.date));
-    save();
-
-    document.getElementById('importPreview').innerHTML=`
-      <div class="banner success" style="margin-top:16px">
-        ✓ Imported <strong>${imported}</strong> activities (${skipped} skipped as duplicates or non-runs).
-        <br/><button class="btn-ghost" style="margin-top:10px" onclick="showView('history',document.querySelectorAll('.nav-btn')[2])">View History →</button>
-      </div>
-      <div class="tip-box" style="margin-top:12px">
-        <div class="tip-box-label">Next Step</div>
-        <p>Your easy/distance runs are imported as "Easy Run" — go to History and edit any that were actually run/walk days to add your interval pattern.</p>
-      </div>`;
   };
   reader.readAsText(file);
 }
+
+// legacy alias
+function handleCSV(input){ handleImportFile(input); }
+function parseCSVFile(file){ parseImportFile(file); }
 
 function showImportBanner(msg,type){
   const b=document.getElementById('importBanner');
