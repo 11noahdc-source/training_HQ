@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>Training HQ — Noah</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --gold:#c8a96e;--gold-dim:rgba(200,169,110,0.15);--gold-border:rgba(200,169,110,0.2);
+  --bg:#0a0a0f;--surface:rgba(255,255,255,0.03);--text:#e8e0d0;--muted:#666;
+  --danger:#c0504a;--success:#6abf6a;
+}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);
+  font-family:'Barlow Condensed',sans-serif;overflow-x:hidden;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-thumb{background:var(--gold);border-radius:2px;}
+
+/* Background */
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -5%,rgba(200,169,110,0.09) 0%,transparent 60%),
+    radial-gradient(ellipse 40% 40% at 95% 85%,rgba(180,70,50,0.06) 0%,transparent 50%);
+}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:repeating-linear-gradient(0deg,transparent,transparent 60px,rgba(200,169,110,0.025) 60px,rgba(200,169,110,0.025) 61px);
+}
+
+#app{position:relative;z-index:1;max-width:840px;margin:0 auto;padding:0 16px 80px;}
+
+/* Header */
+.header{padding:24px 0 0;border-bottom:1px solid rgba(200,169,110,0.12);margin-bottom:24px;}
+.header-top{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;}
+.header-eyebrow{font-size:10px;font-weight:700;letter-spacing:0.3em;color:var(--gold);text-transform:uppercase;margin-bottom:4px;}
+.header-title{font-size:34px;font-weight:800;letter-spacing:-0.01em;line-height:1;}
+.coach-toggle{display:flex;align-items:center;gap:10px;padding:8px 16px;
+  background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:2px;cursor:pointer;
+  font-size:11px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);
+  transition:all 0.2s;user-select:none;}
+.coach-toggle:hover{background:rgba(200,169,110,0.22);}
+.toggle-dot{width:28px;height:16px;border-radius:8px;background:#222;border:1px solid #333;
+  position:relative;transition:background 0.2s;}
+.toggle-dot::after{content:'';position:absolute;top:2px;left:2px;width:10px;height:10px;
+  border-radius:50%;background:#555;transition:all 0.2s;}
+.toggle-dot.on{background:rgba(200,169,110,0.3);border-color:var(--gold);}
+.toggle-dot.on::after{left:14px;background:var(--gold);}
+
+/* Nav */
+nav{display:flex;gap:0;margin-top:16px;overflow-x:auto;}
+.nav-btn{background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;
+  font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;
+  letter-spacing:0.15em;text-transform:uppercase;padding:10px 18px;
+  color:var(--muted);transition:color 0.2s,border-color 0.2s;white-space:nowrap;}
+.nav-btn:hover{color:var(--gold);}
+.nav-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--gold-border);border-radius:2px;padding:22px;}
+.section-label{font-size:10px;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;}
+.form-label{font-size:11px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:#888;margin-bottom:6px;display:block;}
+
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;}
+@media(max-width:600px){.stats-grid{grid-template-columns:repeat(2,1fr);}}
+.stat-card{background:rgba(200,169,110,0.05);border:1px solid rgba(200,169,110,0.18);border-radius:2px;padding:18px 16px;}
+.stat-num{font-size:36px;font-weight:800;color:var(--gold);line-height:1;letter-spacing:-0.02em;}
+.stat-label{font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#555;margin-top:4px;}
+
+/* Form */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:500px){.form-grid{grid-template-columns:1fr;}}
+input,select,textarea{
+  background:rgba(255,255,255,0.04);border:1px solid var(--gold-border);border-radius:2px;
+  color:var(--text);font-family:'Barlow',sans-serif;font-size:14px;
+  padding:10px 13px;width:100%;outline:none;transition:border-color 0.2s;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--gold);}
+select option{background:#1a1a22;}
+textarea{resize:vertical;min-height:68px;}
+
+/* Run/Walk */
+.rw-section{background:rgba(200,169,110,0.04);border:1px solid rgba(200,169,110,0.15);
+  border-radius:2px;padding:16px;margin-top:14px;}
+.rw-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.rw-title{font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);}
+.rw-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+@media(max-width:450px){.rw-grid{grid-template-columns:1fr 1fr;}}
+.rw-preview{margin-top:10px;font-size:13px;color:var(--gold);font-weight:600;letter-spacing:0.05em;}
+
+/* Effort */
+.effort-slider{-webkit-appearance:none;appearance:none;width:100%;height:4px;
+  border-radius:2px;outline:none;border:none;padding:0;cursor:pointer;}
+.effort-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;
+  border-radius:50%;background:var(--gold);cursor:pointer;border:2px solid var(--bg);
+  box-shadow:0 0 8px rgba(200,169,110,0.5);}
+
+/* Buttons */
+.btn-primary{background:var(--gold);color:var(--bg);border:none;border-radius:2px;
+  font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;
+  letter-spacing:0.15em;text-transform:uppercase;padding:12px 28px;
+  cursor:pointer;transition:background 0.2s,transform 0.1s;}
+.btn-primary:hover{background:#dbbf88;}
+.btn-primary:active{transform:scale(0.98);}
+.btn-ghost{background:none;border:1px solid rgba(200,169,110,0.3);border-radius:2px;
+  color:var(--gold);font-family:'Barlow Condensed',sans-serif;
+  font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;
+  padding:8px 16px;cursor:pointer;transition:all 0.2s;}
+.btn-ghost:hover{background:rgba(200,169,110,0.1);}
+.btn-danger{background:none;border:none;color:#444;cursor:pointer;font-size:16px;padding:0;transition:color 0.2s;}
+.btn-danger:hover{color:var(--danger);}
+
+/* Workout rows */
+.workout-row{border-bottom:1px solid rgba(200,169,110,0.07);padding:14px 0;
+  display:grid;grid-template-columns:88px 1fr auto auto 24px;
+  align-items:start;gap:12px;transition:background 0.15s;}
+.workout-row:hover{background:rgba(200,169,110,0.02);}
+.workout-row:last-child{border-bottom:none;}
+.rw-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:0.1em;
+  text-transform:uppercase;background:rgba(200,169,110,0.12);
+  border:1px solid rgba(200,169,110,0.25);border-radius:2px;
+  padding:2px 7px;color:var(--gold);margin-top:4px;}
+.shoe-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;
+  letter-spacing:0.1em;text-transform:uppercase;border-radius:2px;
+  padding:2px 8px;margin-top:4px;margin-left:4px;}
+.shoe-super{background:rgba(100,160,255,0.12);border:1px solid rgba(100,160,255,0.3);color:#7ab4ff;}
+.shoe-trainer{background:rgba(120,200,120,0.1);border:1px solid rgba(120,200,120,0.25);color:#8ecf8e;}
+.shoe-either{background:rgba(180,140,255,0.1);border:1px solid rgba(180,140,255,0.25);color:#b59ef0;}
+
+/* Chat */
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 200px);min-height:380px;}
+.chat-messages{flex:1;overflow-y:auto;border:1px solid var(--gold-border);
+  border-radius:2px;background:var(--surface);padding:16px;
+  display:flex;flex-direction:column;gap:14px;margin-bottom:12px;}
+.chat-bubble-user{background:rgba(200,169,110,0.12);border:1px solid rgba(200,169,110,0.25);
+  border-radius:12px 12px 2px 12px;padding:12px 15px;max-width:82%;
+  margin-left:auto;font-family:'Barlow',sans-serif;font-size:14px;line-height:1.5;}
+.chat-bubble-ai{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+  border-radius:12px 12px 12px 2px;padding:12px 15px;max-width:88%;
+  font-family:'Barlow',sans-serif;font-size:14px;line-height:1.6;white-space:pre-wrap;}
+.coach-label{font-size:10px;font-weight:700;letter-spacing:0.2em;color:var(--gold);
+  text-transform:uppercase;margin-bottom:6px;}
+.chat-input-row{display:flex;gap:10px;}
+.chat-input-row input{flex:1;}
+.coach-off-msg{text-align:center;padding:40px 20px;color:var(--muted);}
+.coach-off-msg .icon{font-size:32px;margin-bottom:12px;}
+.coach-off-msg p{font-family:'Barlow',sans-serif;font-size:14px;line-height:1.6;max-width:320px;margin:0 auto;}
+
+/* Suggestions */
+.suggestions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:16px;}
+
+/* Pulse */
+.pulse{display:flex;gap:4px;align-items:center;padding:4px 0;}
+.pulse span{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:pulseAnim 1.2s infinite ease-in-out;}
+.pulse span:nth-child(2){animation-delay:0.2s;}
+.pulse span:nth-child(3){animation-delay:0.4s;}
+@keyframes pulseAnim{0%,80%,100%{transform:scale(0.6);opacity:0.3;}40%{transform:scale(1);opacity:1;}}
+
+/* Alerts */
+.banner{border-radius:2px;padding:10px 16px;font-size:13px;letter-spacing:0.06em;text-align:center;margin-bottom:14px;}
+.banner.success{background:rgba(106,191,106,0.1);border:1px solid rgba(106,191,106,0.3);color:#7ecf7e;}
+.banner.info{background:rgba(200,169,110,0.08);border:1px solid rgba(200,169,110,0.2);color:var(--gold);}
+
+/* Empty state */
+.empty{color:#3a3a3a;font-size:14px;font-family:'Barlow',sans-serif;text-align:center;padding:30px 0;}
+
+/* Tip box */
+.tip-box{margin-top:18px;padding:14px 18px;background:rgba(200,169,110,0.04);
+  border:1px solid rgba(200,169,110,0.1);border-radius:2px;}
+.tip-box-label{font-size:11px;font-weight:700;letter-spacing:0.15em;color:var(--gold);
+  text-transform:uppercase;margin-bottom:5px;}
+.tip-box p{font-size:13px;color:#777;font-family:'Barlow',sans-serif;line-height:1.6;}
+
+/* CSV import */
+.import-area{border:2px dashed rgba(200,169,110,0.2);border-radius:2px;padding:30px;
+  text-align:center;cursor:pointer;transition:border-color 0.2s;}
+.import-area:hover,.import-area.drag{border-color:var(--gold);}
+.import-area p{font-family:'Barlow',sans-serif;font-size:14px;color:var(--muted);margin-top:8px;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="header-eyebrow">800m · 1500m · Run/Walk Recovery</div>
+        <div class="header-title">TRAINING HQ</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+        <div class="coach-toggle" id="coachToggle" onclick="toggleCoach()">
+          <span id="coachToggleLabel">AI COACH: ON</span>
+          <div class="toggle-dot on" id="toggleDot"></div>
+        </div>
+      </div>
+    </div>
+    <nav>
+      <button class="nav-btn active" onclick="showView('dashboard',this)">Dashboard</button>
+      <button class="nav-btn" onclick="showView('log',this)">Log Workout</button>
+      <button class="nav-btn" onclick="showView('history',this)">History</button>
+      <button class="nav-btn" onclick="showView('coach',this)">AI Coach</button>
+      <button class="nav-btn" onclick="showView('import',this)">Import CSV</button>
+    </nav>
+  </div>
+
+  <!-- Views -->
+  <div id="view-dashboard"></div>
+  <div id="view-log" style="display:none"></div>
+  <div id="view-history" style="display:none"></div>
+  <div id="view-coach" style="display:none"></div>
+  <div id="view-import" style="display:none"></div>
+
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────
+const STORAGE_KEY = 'noah_training_v2';
+const COACH_KEY = 'noah_coach_enabled';
+const CHAT_KEY = 'noah_chat_history';
+let workouts = [];
+let coachEnabled = true;
+let chatHistory = [];
+let currentView = 'dashboard';
+
+const effortLabels = ['','Very Easy','Easy','Moderate Easy','Moderate','Moderate Hard','Hard','Very Hard','Race Effort','Max Effort','All Out'];
+const workoutTypes = ['Easy Run','Tempo Run','Interval / Track Workout','Long Run','Race',
+  'Fartlek','Hill Workout','Recovery Jog','Strength / Drills','Rest Day','Run/Walk'];
+
+// ─── Persistence ─────────────────────────────────────────
+function save(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(workouts));
+  localStorage.setItem(COACH_KEY, JSON.stringify(coachEnabled));
+  localStorage.setItem(CHAT_KEY, JSON.stringify(chatHistory));
+}
+function load(){
+  try{ workouts = JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); }catch{ workouts=[]; }
+  try{ coachEnabled = JSON.parse(localStorage.getItem(COACH_KEY)??'true'); }catch{ coachEnabled=true; }
+  try{ chatHistory = JSON.parse(localStorage.getItem(CHAT_KEY)||'[]'); }catch{ chatHistory=[]; }
+}
+
+// ─── Coach toggle ─────────────────────────────────────────
+function toggleCoach(){
+  coachEnabled = !coachEnabled;
+  document.getElementById('toggleDot').className = 'toggle-dot'+(coachEnabled?' on':'');
+  document.getElementById('coachToggleLabel').textContent = 'AI COACH: '+(coachEnabled?'ON':'OFF');
+  save();
+  if(currentView==='coach') renderCoach();
+}
+
+// ─── Nav ──────────────────────────────────────────────────
+function showView(name, btn){
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  ['dashboard','log','history','coach','import'].forEach(v=>{
+    document.getElementById('view-'+v).style.display = v===name?'block':'none';
+  });
+  currentView = name;
+  if(name==='dashboard') renderDashboard();
+  if(name==='log') renderLog();
+  if(name==='history') renderHistory();
+  if(name==='coach') renderCoach();
+  if(name==='import') renderImport();
+}
+
+// ─── Stats helpers ────────────────────────────────────────
+function weeklyMiles(){
+  const ago = new Date(); ago.setDate(ago.getDate()-7);
+  return workouts.filter(w=>new Date(w.date)>=ago && w.distance)
+    .reduce((s,w)=>s+parseFloat(w.distance||0),0).toFixed(1);
+}
+function weeklyCount(){
+  const ago = new Date(); ago.setDate(ago.getDate()-7);
+  return workouts.filter(w=>new Date(w.date)>=ago).length;
+}
+function avgEffort(){
+  const r = workouts.slice(0,7).filter(w=>w.effort);
+  if(!r.length) return '—';
+  return (r.reduce((s,w)=>s+w.effort,0)/r.length).toFixed(1);
+}
+function streakDays(){
+  if(!workouts.length) return 0;
+  let count=0;
+  const today=new Date(); today.setHours(0,0,0,0);
+  for(let i=0;i<60;i++){
+    const d=new Date(today); d.setDate(d.getDate()-i);
+    const ds=d.toISOString().split('T')[0];
+    if(workouts.some(w=>w.date===ds && w.type!=='Rest Day')) count++;
+    else if(i>0) break;
+  }
+  return count;
+}
+
+// ─── Run/Walk helpers ─────────────────────────────────────
+function parseRWPattern(runMin, walkMin, sets){
+  const r=parseFloat(runMin||0), w=parseFloat(walkMin||0), s=parseInt(sets||0);
+  if(!r||!s) return '';
+  return `${s}x ${r}/${w||0} (run/walk)`;
+}
+function rwSummary(w){
+  if(!w.isRunWalk) return '';
+  return `${w.rwSets}×${w.rwRun}/${w.rwWalk} run/walk`;
+}
+function rwTotalRunTime(w){
+  if(!w.isRunWalk||!w.rwRun||!w.rwSets) return null;
+  return parseFloat(w.rwRun)*parseInt(w.rwSets);
+}
+
+// ─── Shoe recommendation ──────────────────────────────────
+function getShoeRec(w){
+  const type = (w.type||'').toLowerCase();
+  const notes = (w.notes||'').toLowerCase();
+  const splits = (w.splits||'').toLowerCase();
+  const isSpeedWork =
+    type.includes('race') || type.includes('interval') ||
+    type.includes('track workout') || type.includes('tempo') ||
+    notes.includes('race') || notes.includes('time trial') || notes.includes('tt') ||
+    notes.includes('200') || notes.includes('400') || notes.includes('800') ||
+    splits.includes('x') || (type.includes('fartlek') && w.effort >= 7);
+  const isEasy =
+    w.isRunWalk || type.includes('easy') || type.includes('recovery') ||
+    type.includes('rest') || type.includes('strength') || type.includes('drill') ||
+    type.includes('long run') || type.includes('hill') || w.effort <= 4;
+  if(isSpeedWork && !isEasy)
+    return {label:'⚡ Super Shoes', cls:'shoe-super', tip:'Speed/race day — wear your carbon plates'};
+  if(isEasy)
+    return {label:'👟 Trainers', cls:'shoe-trainer', tip:'Easy/recovery day — save the carbon plates'};
+  return {label:'👟 Either Works', cls:'shoe-either', tip:'Moderate effort — either is fine'};
+}
+function shoeBadgeHtml(w){
+  const rec = getShoeRec(w);
+  return `<span class="shoe-badge ${rec.cls}" title="${rec.tip}">${rec.label}</span>`;
+}
+
+// ─── Dashboard ────────────────────────────────────────────
+function renderDashboard(){
+  const el = document.getElementById('view-dashboard');
+  const recent = workouts.slice(0,5);
+  el.innerHTML = `
+    <div class="section-label">This Week</div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-num">${weeklyMiles()}</div><div class="stat-label">Miles This Week</div></div>
+      <div class="stat-card"><div class="stat-num">${weeklyCount()}</div><div class="stat-label">Workouts</div></div>
+      <div class="stat-card"><div class="stat-num">${avgEffort()}</div><div class="stat-label">Avg Effort (Last 7)</div></div>
+      <div class="stat-card"><div class="stat-num">${streakDays()}</div><div class="stat-label">Day Streak</div></div>
+    </div>
+    <div class="section-label">Recent Activity</div>
+    <div class="card">
+      ${recent.length===0
+        ? `<div class="empty">No workouts yet — <span style="color:var(--gold);cursor:pointer" onclick="showView('log',document.querySelectorAll('.nav-btn')[1])">log your first one</span>.</div>`
+        : recent.map(w=>`
+        <div class="workout-row">
+          <div style="font-size:12px;color:#555;font-family:'Barlow',sans-serif">${w.date}</div>
+          <div>
+            <div style="font-size:15px;font-weight:600">${w.type}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:0;align-items:center">
+              ${w.isRunWalk?`<span class="rw-badge">🚶 ${rwSummary(w)}</span>`:''}
+              ${shoeBadgeHtml(w)}
+            </div>
+            ${w.splits?`<div style="font-size:11px;color:var(--gold);margin-top:3px;font-family:'Barlow',sans-serif">📊 ${w.splits}</div>`:''}
+            ${w.notes?`<div style="font-size:12px;color:#4a4a4a;margin-top:2px;font-family:'Barlow',sans-serif">${w.notes.slice(0,70)}${w.notes.length>70?'…':''}</div>`:''}
+          </div>
+          <div style="font-size:13px;color:var(--gold);font-weight:600;text-align:right">
+            ${w.distance?`${w.distance} ${w.unit}`:w.duration?`${w.duration} min`:'—'}
+          </div>
+          <div style="font-size:12px;color:#555">RPE ${w.effort}</div>
+          <div style="width:8px;height:8px;border-radius:50%;background:hsl(${(10-w.effort)*12},55%,50%);margin-top:4px"></div>
+        </div>`).join('')}
+      ${workouts.length>5?`<div style="padding-top:14px;text-align:center"><button class="btn-ghost" onclick="showView('history',document.querySelectorAll('.nav-btn')[2])">View All →</button></div>`:''}
+    </div>
+    <div class="tip-box">
+      <div class="tip-box-label">💡 Your Setup</div>
+      <p>Run/walk intervals are fully supported. When logging distance days, toggle on the Run/Walk mode and enter your pattern like <strong style="color:var(--gold)">4/1 × 4</strong>. Your AI Coach knows about your injury history and will give advice that respects your current protocol.</p>
+    </div>
+  `;
+}
+
+// ─── Log ──────────────────────────────────────────────────
+function renderLog(prefill){
+  const el = document.getElementById('view-log');
+  const f = prefill || {
+    date: new Date().toISOString().split('T')[0],
+    type:'', distance:'', unit:'miles', duration:'', effort:5,
+    notes:'', heartRate:'', splits:'', isRunWalk:false,
+    rwRun:'', rwWalk:'', rwSets:''
+  };
+  el.innerHTML = `
+    <div class="card">
+      <div class="section-label" style="margin-bottom:18px">Log Workout</div>
+      <div id="logBanner"></div>
+      <div class="form-grid">
+        <div>
+          <label class="form-label">Date</label>
+          <input type="date" id="f_date" value="${f.date}"/>
+        </div>
+        <div>
+          <label class="form-label">Workout Type</label>
+          <select id="f_type" onchange="onTypeChange()">
+            <option value="">Select type…</option>
+            ${workoutTypes.map(t=>`<option value="${t}"${f.type===t?' selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div style="flex:2">
+            <label class="form-label">Distance</label>
+            <input type="number" id="f_distance" placeholder="0.0" step="0.1" value="${f.distance||''}"/>
+          </div>
+          <div style="flex:1">
+            <label class="form-label">Unit</label>
+            <select id="f_unit">
+              <option value="miles"${f.unit==='miles'?' selected':''}>mi</option>
+              <option value="km"${f.unit==='km'?' selected':''}>km</option>
+              <option value="meters"${f.unit==='meters'?' selected':''}>m</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Duration (min)</label>
+          <input type="number" id="f_duration" placeholder="45" value="${f.duration||''}"/>
+        </div>
+        <div>
+          <label class="form-label">Avg Heart Rate (bpm)</label>
+          <input type="number" id="f_hr" placeholder="Optional" value="${f.heartRate||''}"/>
+        </div>
+        <div>
+          <label class="form-label">Splits / Intervals</label>
+          <input type="text" id="f_splits" placeholder="e.g. 2:15, 2:18, 2:14" value="${f.splits||''}"/>
+        </div>
+      </div>
+
+      <!-- Run/Walk Section -->
+      <div class="rw-section" id="rwSection" style="${f.isRunWalk?'':'display:none'}">
+        <div class="rw-header">
+          <div class="rw-title">🚶 Run / Walk Intervals</div>
+          <button class="btn-ghost" style="font-size:11px;padding:5px 12px" onclick="toggleRW(false)">Remove</button>
+        </div>
+        <div class="rw-grid">
+          <div>
+            <label class="form-label">Run (min)</label>
+            <input type="number" id="rw_run" placeholder="4" step="0.5" value="${f.rwRun||''}" oninput="updateRWPreview()"/>
+          </div>
+          <div>
+            <label class="form-label">Walk (min)</label>
+            <input type="number" id="rw_walk" placeholder="1" step="0.5" value="${f.rwWalk||''}" oninput="updateRWPreview()"/>
+          </div>
+          <div>
+            <label class="form-label">Sets</label>
+            <input type="number" id="rw_sets" placeholder="4" value="${f.rwSets||''}" oninput="updateRWPreview()"/>
+          </div>
+        </div>
+        <div class="rw-preview" id="rwPreview">${f.rwRun&&f.rwSets?parseRWPattern(f.rwRun,f.rwWalk,f.rwSets):''}</div>
+      </div>
+
+      <div id="rwAddBtn" style="${f.isRunWalk?'display:none':'margin-top:14px'}">
+        <button class="btn-ghost" onclick="toggleRW(true)">+ Add Run/Walk Intervals</button>
+      </div>
+
+      <!-- Effort -->
+      <div style="margin-top:18px">
+        <label class="form-label">
+          Effort — RPE <span id="effortVal">${f.effort}</span>/10
+          &nbsp;<span id="effortLabel" style="color:var(--gold);font-size:11px">${effortLabels[f.effort]}</span>
+        </label>
+        <input type="range" class="effort-slider" id="f_effort" min="1" max="10" value="${f.effort}"
+          style="background:linear-gradient(to right,var(--gold) 0%,var(--gold) ${(f.effort-1)/9*100}%,rgba(200,169,110,0.2) ${(f.effort-1)/9*100}%)"
+          oninput="updateEffort(this)"/>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#444;margin-top:4px;letter-spacing:0.1em">
+          <span>1 · REST</span><span>5 · MODERATE</span><span>10 · MAX</span>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div style="margin-top:16px">
+        <label class="form-label">Notes</label>
+        <textarea id="f_notes" placeholder="How'd it feel? What went well? Any tightness or issues?">${f.notes||''}</textarea>
+      </div>
+
+      <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap">
+        <button class="btn-primary" onclick="saveWorkout()">Save Workout</button>
+        <button class="btn-ghost" onclick="clearForm()">Clear</button>
+      </div>
+    </div>
+  `;
+}
+
+function onTypeChange(){
+  const t = document.getElementById('f_type').value;
+  if(t==='Run/Walk') toggleRW(true);
+}
+function toggleRW(on){
+  document.getElementById('rwSection').style.display = on?'':'none';
+  document.getElementById('rwAddBtn').style.display = on?'none':'';
+}
+function updateRWPreview(){
+  const run=document.getElementById('rw_run')?.value;
+  const walk=document.getElementById('rw_walk')?.value;
+  const sets=document.getElementById('rw_sets')?.value;
+  const p = document.getElementById('rwPreview');
+  if(p) p.textContent = parseRWPattern(run,walk,sets);
+}
+function updateEffort(el){
+  const v=parseInt(el.value);
+  document.getElementById('effortVal').textContent=v;
+  document.getElementById('effortLabel').textContent=effortLabels[v];
+  el.style.background=`linear-gradient(to right,var(--gold) 0%,var(--gold) ${(v-1)/9*100}%,rgba(200,169,110,0.2) ${(v-1)/9*100}%)`;
+}
+function clearForm(){ renderLog(); }
+
+function saveWorkout(){
+  const type = document.getElementById('f_type').value;
+  const date = document.getElementById('f_date').value;
+  if(!type||!date){ showBanner('Please select a date and workout type.','info'); return; }
+  const rwVisible = document.getElementById('rwSection').style.display!=='none';
+  const w = {
+    id: Date.now(),
+    date, type,
+    distance: document.getElementById('f_distance').value,
+    unit: document.getElementById('f_unit').value,
+    duration: document.getElementById('f_duration').value,
+    effort: parseInt(document.getElementById('f_effort').value),
+    notes: document.getElementById('f_notes').value,
+    heartRate: document.getElementById('f_hr').value,
+    splits: document.getElementById('f_splits').value,
+    isRunWalk: rwVisible,
+    rwRun: rwVisible?(document.getElementById('rw_run')?.value||''):'',
+    rwWalk: rwVisible?(document.getElementById('rw_walk')?.value||''):'',
+    rwSets: rwVisible?(document.getElementById('rw_sets')?.value||''):'',
+  };
+  workouts.unshift(w);
+  save();
+  renderLog();
+  showBanner('✓ Workout saved!','success');
+}
+function showBanner(msg,type){
+  const b=document.getElementById('logBanner');
+  if(b){ b.innerHTML=`<div class="banner ${type}">${msg}</div>`; setTimeout(()=>b.innerHTML='',3000); }
+}
+
+// ─── History ──────────────────────────────────────────────
+function renderHistory(){
+  const el = document.getElementById('view-history');
+  el.innerHTML = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <div class="section-label" style="margin-bottom:0">All Workouts (${workouts.length})</div>
+        ${workouts.length?`<button class="btn-ghost" style="font-size:11px;color:#c0504a;border-color:rgba(192,80,74,0.3)" onclick="confirmClearAll()">Clear All</button>`:''}
+      </div>
+      ${workouts.length===0
+        ? `<div class="empty">No workouts logged yet.</div>`
+        : workouts.map(w=>`
+        <div class="workout-row" style="grid-template-columns:88px 1fr auto auto 24px">
+          <div style="font-size:12px;color:#555;font-family:'Barlow',sans-serif">${w.date}</div>
+          <div>
+            <div style="font-size:15px;font-weight:600">${w.type}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:0;align-items:center">
+              ${w.isRunWalk?`<span class="rw-badge">🚶 ${rwSummary(w)}</span>`:''}
+              ${shoeBadgeHtml(w)}
+            </div>
+            ${w.splits?`<div style="font-size:11px;color:var(--gold);margin-top:3px;font-family:'Barlow',sans-serif">📊 ${w.splits}</div>`:''}
+            ${w.heartRate?`<div style="font-size:11px;color:#555;font-family:'Barlow',sans-serif">♥ ${w.heartRate} bpm</div>`:''}
+            ${w.notes?`<div style="font-size:12px;color:#4a4a4a;margin-top:2px;font-family:'Barlow',sans-serif">${w.notes}</div>`:''}
+          </div>
+          <div style="font-size:13px;color:var(--gold);font-weight:600;text-align:right;white-space:nowrap">
+            ${w.distance?`${w.distance} ${w.unit}`:w.duration?`${w.duration} min`:'—'}
+          </div>
+          <div style="font-size:12px;color:#555;white-space:nowrap">RPE ${w.effort}</div>
+          <button class="btn-danger" onclick="deleteWorkout(${w.id})" title="Delete">✕</button>
+        </div>`).join('')}
+    </div>
+  `;
+}
+function deleteWorkout(id){
+  workouts = workouts.filter(w=>w.id!==id);
+  save(); renderHistory();
+}
+function confirmClearAll(){
+  if(confirm('Delete ALL workouts? This cannot be undone.')){ workouts=[]; save(); renderHistory(); }
+}
+
+// ─── Coach ────────────────────────────────────────────────
+function renderCoach(){
+  const el = document.getElementById('view-coach');
+  if(!coachEnabled){
+    el.innerHTML=`
+      <div class="card">
+        <div class="coach-off-msg">
+          <div class="icon">🔕</div>
+          <p>AI Coach is currently <strong>off</strong>. Toggle it on using the button at the top to start chatting.</p>
+        </div>
+      </div>`;
+    return;
+  }
+  const msgs = chatHistory.map(m=>`
+    <div style="display:flex;justify-content:${m.role==='user'?'flex-end':'flex-start'}">
+      <div class="${m.role==='user'?'chat-bubble-user':'chat-bubble-ai'}">
+        ${m.role==='assistant'?`<div class="coach-label">Coach</div>`:''}
+        ${escHtml(m.content)}
+      </div>
+    </div>`).join('');
+
+  const suggestions = chatHistory.length===0?`
+    <div class="suggestions">
+      ${['How\'s my training load?','What should I do tomorrow?','Tips for 800m speed work?','How do I prevent shin splints?','Is my run/walk ratio good?']
+        .map(q=>`<button class="btn-ghost" style="font-size:11px" onclick="fillChat(\`${q}\`)">${q}</button>`).join('')}
+    </div>`:'';
+
+  el.innerHTML=`
+    <div class="chat-wrap">
+      <div class="chat-messages" id="chatMessages">
+        ${chatHistory.length===0?`
+          <div class="empty" style="padding:40px 20px">
+            <div style="font-size:28px;margin-bottom:10px">🏃</div>
+            <div>Ask your AI Coach anything about training, pacing, recovery, or your run/walk protocol.</div>
+            ${suggestions}
+          </div>`
+          :msgs}
+        <div id="chatEnd"></div>
+      </div>
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" placeholder="Ask your coach…" onkeydown="if(event.key==='Enter')sendChat()"/>
+        <button class="btn-primary" id="sendBtn" onclick="sendChat()">Send</button>
+      </div>
+    </div>
+  `;
+  scrollChat();
+}
+function fillChat(q){ document.getElementById('chatInput').value=q; }
+function scrollChat(){ setTimeout(()=>{ const e=document.getElementById('chatEnd'); if(e) e.scrollIntoView({behavior:'smooth'}); },50); }
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function sendChat(){
+  const input = document.getElementById('chatInput');
+  const msg = input?.value?.trim();
+  if(!msg) return;
+  input.value='';
+  document.getElementById('sendBtn').disabled=true;
+
+  chatHistory.push({role:'user',content:msg});
+  renderCoachMessages();
+
+  // Add typing indicator
+  const cm = document.getElementById('chatMessages');
+  const typing = document.createElement('div');
+  typing.id='typing';
+  typing.style='display:flex';
+  typing.innerHTML=`<div class="chat-bubble-ai"><div class="pulse"><span></span><span></span><span></span></div></div>`;
+  cm.appendChild(typing);
+  scrollChat();
+
+  const recentWorkouts = workouts.slice(0,15).map(w=>{
+    let line = `${w.date}: ${w.type}`;
+    if(w.distance) line+=`, ${w.distance} ${w.unit}`;
+    if(w.duration) line+=`, ${w.duration} min`;
+    if(w.effort) line+=`, RPE ${w.effort}/10`;
+    if(w.isRunWalk && w.rwRun) line+=`, run/walk: ${w.rwSets}×${w.rwRun}/${w.rwWalk}`;
+    if(w.heartRate) line+=`, HR ${w.heartRate}bpm`;
+    if(w.splits) line+=`, splits: ${w.splits}`;
+    if(w.notes) line+=`, notes: "${w.notes}"`;
+    return line;
+  }).join('\n');
+
+  const system = `You are Noah's personal track & field coach assistant. Here is everything you need to know about Noah:
+
+WORKOUT LOG:
+- Contains running activities ONLY (walks, bike rides, and other cross training are excluded)
+- Do not assume cross training is happening unless Noah specifically mentions it
+- Has both trainers and super shoes (carbon plate)
+- Super shoes = races, track intervals, tempo, time trials
+- Trainers = easy runs, run/walk days, long runs, recovery, hills
+- When giving workout advice, always mention which shoe to wear
+
+ATHLETE PROFILE:
+- Events: 800m, 1500m, cross country (fall — coach returns then)
+- Injury history: Suffered a significant injury about 2 years ago. As a result, his distance/easy days use a run/walk protocol (e.g. 4x 4/1 = 4 sets of 4 min running + 1 min walking). This is NOT a beginner thing — it's how he manages his recovery and builds mileage safely.
+- Track workouts and intervals: normal running, no run/walk needed
+- Season: Currently training without a coach (spring/summer). Coach returns in fall for cross country.
+
+YOUR ROLE:
+- Be his coach. Direct, specific, and knowledgeable like a real track coach.
+- ALWAYS respect and support his run/walk protocol on easy days. Never suggest he just run straight through — his protocol is intentional.
+- When giving feedback on run/walk workouts, reference the pattern (e.g. "your 4×4/1 last Tuesday…").
+- Focus on: aerobic base building, 800m/1500m specific training, injury prevention, recovery, pacing.
+- Keep responses concise and actionable. No fluff.
+
+NOAH'S RECENT WORKOUT LOG:
+${recentWorkouts || 'No workouts logged yet.'}`;
+
+  try{
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system,
+        messages: chatHistory.map(m=>({role:m.role,content:m.content}))
+      })
+    });
+    const data = await res.json();
+    const reply = data.content?.find(b=>b.type==='text')?.text || 'Sorry, I had trouble responding. Try again.';
+    chatHistory.push({role:'assistant',content:reply});
+    save();
+  }catch{
+    chatHistory.push({role:'assistant',content:'Connection error — make sure you\'re online and try again.'});
+  }
+
+  document.getElementById('sendBtn').disabled=false;
+  renderCoach();
+}
+
+function renderCoachMessages(){
+  const cm = document.getElementById('chatMessages');
+  if(!cm) return;
+  cm.innerHTML = chatHistory.map(m=>`
+    <div style="display:flex;justify-content:${m.role==='user'?'flex-end':'flex-start'}">
+      <div class="${m.role==='user'?'chat-bubble-user':'chat-bubble-ai'}">
+        ${m.role==='assistant'?`<div class="coach-label">Coach</div>`:''}
+        ${escHtml(m.content)}
+      </div>
+    </div>`).join('')+'<div id="chatEnd"></div>';
+  scrollChat();
+}
+
+// ─── Import (JSON + CSV) ──────────────────────────────────
+function renderImport(){
+  const el = document.getElementById('view-import');
+  el.innerHTML=`
+    <div class="card">
+      <div class="section-label" style="margin-bottom:4px">Import Garmin Data</div>
+      <p style="font-family:'Barlow',sans-serif;font-size:14px;color:#777;margin-bottom:20px;line-height:1.6">
+        Supports both <strong style="color:var(--gold)">JSON</strong> (from Garmin data export) and <strong style="color:var(--gold)">CSV</strong> (Activities.csv).
+        Drag in your file or click to choose. Run/walk workouts are detected automatically from the activity name.
+      </p>
+      <div id="importBanner"></div>
+      <label class="import-area" id="importArea" for="importFile">
+        <div style="font-size:32px">📂</div>
+        <p>Click to choose your Garmin JSON or CSV file<br/><span style="font-size:12px;color:#3a3a3a">or drag & drop it here</span></p>
+        <input type="file" id="importFile" accept=".json,.csv" style="display:none" onchange="handleImportFile(this)"/>
+      </label>
+      <div id="importPreview"></div>
+    </div>
+  `;
+  const area = document.getElementById('importArea');
+  area.addEventListener('dragover',e=>{e.preventDefault();area.classList.add('drag');});
+  area.addEventListener('dragleave',()=>area.classList.remove('drag'));
+  area.addEventListener('drop',e=>{
+    e.preventDefault();area.classList.remove('drag');
+    const f=e.dataTransfer.files[0];
+    if(f) parseImportFile(f);
+  });
+}
+
+function handleImportFile(input){
+  const f = input.files[0];
+  if(f) parseImportFile(f);
+}
+
+// ─── Detect run/walk from activity name ───────────────────
+function detectRunWalk(name){
+  // Matches patterns like: 5x3/1, 4x4/1, 5x 3/1, 4 x 4/1, 3/1x5 etc
+  const m = (name||'').match(/(\d+)\s*[xX×]\s*(\d+\.?\d*)\/(\d+\.?\d*)|(\d+\.?\d*)\/(\d+\.?\d*)\s*[xX×]\s*(\d+)/);
+  if(!m) return {isRunWalk:false,rwRun:'',rwWalk:'',rwSets:''};
+  if(m[1]){ return {isRunWalk:true, rwSets:m[1], rwRun:m[2], rwWalk:m[3]}; }
+  if(m[4]){ return {isRunWalk:true, rwRun:m[4], rwWalk:m[5], rwSets:m[6]}; }
+  return {isRunWalk:false,rwRun:'',rwWalk:'',rwSets:''};
+}
+
+// ─── Map activity type ────────────────────────────────────
+function mapActivityType(rawType, name, rw){
+  if(rw.isRunWalk) return 'Run/Walk';
+  const t=(rawType||'').toLowerCase();
+  const n=(name||'').toLowerCase();
+  if(t.includes('run')||t.includes('running')){
+    if(n.includes('interval')||n.includes('track')||n.includes('workout')||
+       n.includes('200')||n.includes('400')||n.includes('tempo')||n.includes('speed'))
+      return 'Interval / Track Workout';
+    if(n.includes('long')) return 'Long Run';
+    if(n.includes('easy')||n.includes('recovery')) return 'Easy Run';
+    if(n.includes('tempo')) return 'Tempo Run';
+    if(n.includes('hill')) return 'Hill Workout';
+    return 'Easy Run';
+  }
+  if(t.includes('walk')) return 'Recovery Jog';
+  return 'Easy Run';
+}
+
+// ─── Parse Garmin JSON ────────────────────────────────────
+function parseGarminJSON(text){
+  let raw;
+  try{ raw=JSON.parse(text); }catch{ showImportBanner('Could not parse JSON — make sure it\'s a valid Garmin export file.','info'); return; }
+
+  // Handle wrapper: [{summarizedActivitiesExport:[...]}] or just [...]
+  let activities = [];
+  if(Array.isArray(raw)){
+    if(raw[0]?.summarizedActivitiesExport) activities = raw[0].summarizedActivitiesExport;
+    else activities = raw;
+  } else if(raw.summarizedActivitiesExport){
+    activities = raw.summarizedActivitiesExport;
+  } else {
+    showImportBanner('Unrecognized JSON format — expected Garmin summarizedActivitiesExport.','info'); return;
+  }
+
+  let imported=0, skipped=0, nonRun=0;
+  const newWorkouts=[];
+
+  // Running activity types to include
+  const isRunningActivity = (type) => {
+    const t=(type||'').toLowerCase();
+    return t.includes('run') || t==='trail_running' || t==='track_running' || t==='treadmill_running';
+  };
+
+  activities.forEach((a,i)=>{
+    if(!isRunningActivity(a.activityType||a.sportType)){ nonRun++; return; }
+
+    // Date from beginTimestamp (milliseconds)
+    let date='';
+    try{
+      const ts = a.beginTimestamp||a.startTimeGmt;
+      // Garmin sometimes stores as scientific notation float
+      const ms = typeof ts==='string'? parseFloat(ts) : ts;
+      date = new Date(ms).toISOString().split('T')[0];
+      if(date==='Invalid Date'||!date){ skipped++; return; }
+    }catch{ skipped++; return; }
+
+    const name = a.name||'';
+    const rw = detectRunWalk(name);
+    const type = mapActivityType(a.activityType, name, rw);
+
+    // Distance: Garmin JSON is in centimeters → convert to miles
+    const distCm = parseFloat(a.distance||0);
+    const distMiles = distCm>0 ? (distCm/160934).toFixed(2) : '';
+
+    // Duration: milliseconds → minutes
+    const durMs = parseFloat(a.duration||a.movingDuration||0);
+    const durMin = durMs>0 ? Math.round(durMs/60000).toString() : '';
+
+    const heartRate = a.avgHr ? Math.round(a.avgHr).toString() : '';
+
+    // Notes: include location and key stats
+    const loc = a.locationName ? `${a.locationName} · ` : '';
+    const vo2 = a.vO2MaxValue ? ` · VO2Max: ${a.vO2MaxValue}` : '';
+    const cad = a.avgRunCadence ? ` · Cadence: ${Math.round(a.avgRunCadence*2)}spm` : '';
+    const notes = `${loc}Imported from Garmin${vo2}${cad}`;
+
+    // Deduplicate by date + distance
+    if(workouts.some(w=>w.date===date&&w.distance===distMiles)){ skipped++; return; }
+
+    newWorkouts.push({
+      id: Date.now()+i,
+      date, type,
+      distance: distMiles,
+      unit: 'miles',
+      duration: durMin,
+      effort: 5,
+      notes,
+      heartRate,
+      splits: '',
+      isRunWalk: rw.isRunWalk,
+      rwRun: rw.rwRun,
+      rwWalk: rw.rwWalk,
+      rwSets: rw.rwSets,
+      garminName: name,
+    });
+    imported++;
+  });
+
+  finishImport(newWorkouts, imported, skipped, nonRun);
+}
+
+// ─── Parse Garmin CSV ─────────────────────────────────────
+function parseGarminCSV(text){
+  const lines = text.trim().split('\n');
+  if(lines.length<2){ showImportBanner('Could not read CSV.','info'); return; }
+  const headers = lines[0].split(',').map(h=>h.replace(/"/g,'').trim().toLowerCase());
+  const colIdx = (names) => { for(const n of names){ const i=headers.findIndex(h=>h.includes(n)); if(i>-1) return i; } return -1; };
+  const dateIdx=colIdx(['date','activity date']), typeIdx=colIdx(['activity type','type']),
+        distIdx=colIdx(['distance']), timeIdx=colIdx(['time','elapsed time','duration']),
+        hrIdx=colIdx(['avg hr','average heart rate']), nameIdx=colIdx(['activity name','name','title']);
+  if(dateIdx===-1){ showImportBanner('Could not find a Date column.','info'); return; }
+
+  let imported=0, skipped=0;
+  const newWorkouts=[];
+  for(let i=1;i<lines.length;i++){
+    const cols=lines[i].split(',').map(c=>c.replace(/"/g,'').trim());
+    const rawDate=cols[dateIdx]||''; if(!rawDate) continue;
+    let date='';
+    try{ const d=new Date(rawDate); if(!isNaN(d)) date=d.toISOString().split('T')[0]; else{ skipped++; continue; } }catch{ skipped++; continue; }
+    const actName = nameIdx>-1?cols[nameIdx]:'';
+    const rw = detectRunWalk(actName);
+    const rawType=typeIdx>-1?cols[typeIdx]:'';
+    const type = mapActivityType(rawType, actName, rw);
+    const distRaw=distIdx>-1?cols[distIdx]:'';
+    const distance=distRaw?parseFloat(distRaw).toFixed(2):'';
+    const hrRaw=hrIdx>-1?cols[hrIdx]:'';
+    const heartRate=hrRaw&&!isNaN(hrRaw)?hrRaw:'';
+    const timeRaw=timeIdx>-1?cols[timeIdx]:'';
+    let duration='';
+    if(timeRaw){ if(timeRaw.includes(':')){ const p=timeRaw.split(':').map(Number); duration=p.length===3?Math.round(p[0]*60+p[1]+p[2]/60).toString():Math.round(p[0]+p[1]/60).toString(); } else duration=Math.round(parseFloat(timeRaw)/60).toString(); }
+    if(workouts.some(w=>w.date===date&&w.distance===distance)){ skipped++; continue; }
+    newWorkouts.push({id:Date.now()+i,date,type,distance,unit:'km',duration,effort:5,notes:'Imported from Garmin',heartRate,splits:'',isRunWalk:rw.isRunWalk,rwRun:rw.rwRun,rwWalk:rw.rwWalk,rwSets:rw.rwSets,garminName:actName});
+    imported++;
+  }
+  finishImport(newWorkouts, imported, skipped);
+}
+
+// ─── Finish import ────────────────────────────────────────
+function finishImport(newWorkouts, imported, skipped, nonRun=0){
+  newWorkouts.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  workouts=[...newWorkouts,...workouts];
+  workouts.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  save();
+  const rwCount = newWorkouts.filter(w=>w.isRunWalk).length;
+  document.getElementById('importPreview').innerHTML=`
+    <div class="banner success" style="margin-top:16px">
+      ✓ Imported <strong>${imported}</strong> runs (${skipped} duplicate${skipped!==1?'s':''} skipped).
+      ${nonRun?`<br/>🚴 <strong>${nonRun}</strong> non-running activities (walks, rides etc) were ignored — keeping your log runs-only.`:''}
+      ${rwCount?`<br/>🚶 <strong>${rwCount}</strong> run/walk workouts detected automatically from activity names.`:''}
+      <br/><br/><button class="btn-ghost" style="margin-top:2px" onclick="showView('history',document.querySelectorAll('.nav-btn')[2])">View History →</button>
+    </div>`;
+}
+
+function parseImportFile(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const text=e.target.result.trim();
+    if(file.name.endsWith('.json')||text.startsWith('[{')||text.startsWith('{')){
+      parseGarminJSON(text);
+    } else {
+      parseGarminCSV(text);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// legacy alias
+function handleCSV(input){ handleImportFile(input); }
+function parseCSVFile(file){ parseImportFile(file); }
+
+function showImportBanner(msg,type){
+  const b=document.getElementById('importBanner');
+  if(b) b.innerHTML=`<div class="banner ${type}" style="margin-bottom:14px">${msg}</div>`;
+}
+
+// ─── Init ─────────────────────────────────────────────────
+load();
+document.getElementById('toggleDot').className='toggle-dot'+(coachEnabled?' on':'');
+document.getElementById('coachToggleLabel').textContent='AI COACH: '+(coachEnabled?'ON':'OFF');
+renderDashboard();
+</script>
+</body>
+</html>
